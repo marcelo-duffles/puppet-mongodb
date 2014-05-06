@@ -1,0 +1,45 @@
+#!/bin/bash
+
+PRIMARY="<%= primary_server %>"
+SECONDARY="<%= secondary_server %>"
+ARBITER="<%= arbiter_server %>"
+REPLICA_SET="<%= replset %>"
+
+CURRENT_CONF=`mongo mydb --quiet --eval "rs.conf()"`
+
+if [ "$CURRENT_CONF" != "null" ]; then
+  echo "Replica set already configured."
+  exit 0
+fi
+
+if [ "$SECONDARY" == "" ] || [ "$ARBITER" == "" ]; then
+  RS_CONF="{\
+   _id: '$REPLICA_SET',\
+   members:\
+   [
+     {_id: 0, host: '$PRIMARY', priority: 2},\
+   ]\
+  }"
+else
+  RS_CONF="{\
+   _id: '$REPLICA_SET',\
+   members:\
+   [\
+     {_id: 0, host: '$PRIMARY', priority: 2},\
+     {_id: 1, host: '$SECONDARY'},\
+     {_id: 2, host: '$ARBITER', arbiterOnly:true},\
+   ]\
+  }"
+fi
+
+#echo $RS_CONF
+
+RESULT_OK=`mongo mydb --quiet --eval "conf = $RS_CONF; var result = rs.initiate(conf); print(result.ok);"`
+
+if [ $RESULT_OK -ne 1 ]; then
+  echo "Error initiating replica set with this configuration: $RS_CONF"
+  exit 1
+fi
+
+echo "Replica set initiated successfully."
+exit 0

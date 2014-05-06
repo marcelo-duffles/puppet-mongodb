@@ -1,0 +1,92 @@
+#!/bin/bash
+
+# mongod - Startup script for mongod
+
+# chkconfig: 35 85 15
+# description: Mongo is a scalable, document-oriented database.
+# processname: <%= servicename %>
+# config: <%= config %>
+# pidfile: <%= pidfilepath %>
+
+. /etc/rc.d/init.d/functions
+
+# things from mongod.conf get there by mongod reading it
+
+
+# NOTE: if you change any OPTIONS here, you get what you pay for:
+# this script assumes all options are in the config file.
+CONFIGFILE="<%= config %>"
+OPTIONS=" -f $CONFIGFILE"
+SYSCONFIG="/etc/sysconfig/mongod"
+
+PIDFILE=<%= pidfilepath %>
+mongod='/usr/bin/mongod'
+
+MONGO_USER=mongod
+MONGO_GROUP=mongod
+
+if [ -f "$SYSCONFIG" ]; then
+    . "$SYSCONFIG"
+fi
+
+# Handle NUMA access to CPUs (SERVER-3574)
+# This verifies the existence of numactl as well as testing that the command works
+NUMACTL_ARGS="--interleave=all"
+if which numactl >/dev/null 2>/dev/null && numactl $NUMACTL_ARGS ls / >/dev/null 2>/dev/null
+then
+    NUMACTL="numactl $NUMACTL_ARGS"
+else
+    NUMACTL=""
+fi
+
+start()
+{
+  echo -n $"Starting <%= servicename %>: "
+  daemon --user "$MONGO_USER" $NUMACTL $mongod $OPTIONS
+  RETVAL=$?
+  echo
+  [ $RETVAL -eq 0 ] && touch /var/lock/subsys/<%= servicename %>
+}
+
+stop()
+{
+  echo -n $"Stopping <%= servicename %>: "
+  killproc -p "$PIDFILE" -d 300 $mongod
+  RETVAL=$?
+  echo
+  [ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/<%= servicename %>
+}
+
+restart () {
+	stop
+	start
+}
+
+ulimit -n 12000
+RETVAL=0
+
+case "$1" in
+  start)
+    status -p "$PIDFILE" <%= servicename %>
+    RETVAL=$?
+    [ $RETVAL -ne 0 ] &&  start
+    ;;
+  stop)
+    stop
+    ;;
+  restart|reload|force-reload)
+    restart
+    ;;
+  condrestart)
+    [ -f /var/lock/subsys/<%= servicename %> ] && restart || :
+    ;;
+  status)
+    status -p "$PIDFILE" <%= servicename %>
+    RETVAL=$?
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|status|restart|reload|force-reload|condrestart}"
+    RETVAL=1
+esac
+
+exit $RETVAL

@@ -1,0 +1,17 @@
+#!/bin/bash
+
+LOG_FILE=<%= purge_log_path %>
+SCRIPT_DIR=<%= script_dir %>
+
+date >> $LOG_FILE
+IS_MASTER=`mongo mydb --quiet --eval "db.isMaster().ismaster"`
+if [ $IS_MASTER == 'true' ]; then
+  echo -n "Number of objects in database: "               >> $LOG_FILE
+  mongo mydb --quiet --eval "db.stats().objects"          >> $LOG_FILE
+  mongo mydb --quiet $SCRIPT_DIR/mongodb_occupation.js    >> $LOG_FILE
+  mongo mydb --quiet $SCRIPT_DIR/mongodb_purge.js         >> $LOG_FILE
+elif [ $IS_MASTER == 'false' ]; then
+  echo "Not master, doing nothing."                       >> $LOG_FILE
+else
+  echo "Error: $IS_MASTER"                                >> $LOG_FILE
+fi

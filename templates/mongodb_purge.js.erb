@@ -1,0 +1,20 @@
+
+var allColls = db.getCollectionNames();
+var eventsColls = allColls.filter(function (coll) {
+    return coll.indexOf("events.") == 0
+});
+
+// Edit this line to change the retention period (default: 2 months)
+var numberOfMonthsToRetain = <%= data_retention_in_months %>;
+var keepFrom = new Date();
+keepFrom.setMonth(keepFrom.getMonth() - numberOfMonthsToRetain);
+
+// Edit this line to force a given date to keep data from
+//var keepFrom = "Sep 12 2010";
+
+print("Keeping data from " + keepFrom);
+
+for (var i in eventsColls) {
+    print('Removing old events in ' + eventsColls[i]);
+    db[eventsColls[i]].remove({timestamp : {$lt: Date.parse(keepFrom)}});
+}
